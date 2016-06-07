@@ -25,6 +25,8 @@ import time
 from sensor_calcs import *
 import json
 import select
+from pubnub_fns import Pubnub_stream
+
 
 def floatfromhex(h):
     t = float.fromhex(h)
@@ -94,16 +96,34 @@ class SensorTag:
 
 barometer = None
 datalog = sys.stdout
+pubnub_feed = None
+
+def datalog_out(data):
+    # The socket or output file might not be writeable
+    # check with select so we don't block.
+    (re,wr,ex) = select.select([],[datalog],[],0)
+    if len(wr) > 0:
+       datalog.write(json.dumps(data) + "\n")
+       datalog.flush()
+       pass
+    return
+
 
 class SensorCallbacks:
 
+    #Set some dummy values so the first time we write data to Xively we've got all parameters.
+    #Alternative is try,except when writing.
     data = {}
+    data['t006']=100
+    data['accl']=[0,0,0]
+    data['humd']=[100,0]
+    data['baro']=[100,0]
+    data['magn']=[0,0,0]
+    data['gyro']=[0,0,0]
 
     def __init__(self,addr):
         self.data['addr'] = addr
-
-    def callback(message):
-        print(message)
+        Pubnub_stream.write(self.data)
 
     def tmp006(self,v):
         objT = (v[1]<<8)+v[0]
@@ -121,7 +141,7 @@ class SensorCallbacks:
         rawT = (v[1]<<8)+v[0]
         rawH = (v[3]<<8)+v[2]
         (t, rh) = calcHum(rawT, rawH)
-        self.data['humd'] = [t, rh]
+        self.data['humd'] = [round(t,2), round(rh,2)]
         print "HUMD %.1f" % rh
 
     def baro(self,v):
@@ -129,16 +149,13 @@ class SensorCallbacks:
         global datalog
         rawT = (v[1]<<8)+v[0]
         rawP = (v[3]<<8)+v[2]
-        (temp, pres) =  self.data['baro'] = barometer.calc(rawT, rawP)
+        (temp, pres) = barometer.calc(rawT, rawP)
+        
+        self.data['baro'] = ( round(temp,2), round(pres,2) ) 
+        self.data['time'] = long(time.time() * 1000)
         print "BARO", temp, pres
-        self.data['time'] = long(time.time() * 1000);
-        # The socket or output file might not be writeable
-        # check with select so we don't block.
-        (re,wr,ex) = select.select([],[datalog],[],0)
-        if len(wr) > 0:
-            datalog.write(json.dumps(self.data) + "\n")
-            datalog.flush()
-            pass
+        #datalog_out(self.data)
+	Pubnub_stream.write(self.data)
 
     def magnet(self,v):
         x = (v[1]<<8)+v[0]
@@ -154,15 +171,15 @@ class SensorCallbacks:
 def main():
     global datalog
     global barometer
+    global Pubnub_stream
 
     bluetooth_adr = sys.argv[1]
-    #data['addr'] = bluetooth_adr
     if len(sys.argv) > 2:
         datalog = open(sys.argv[2], 'w+')
 
+    Pubnub_stream = Pubnub_stream()
+
     while True:
-     try:   
-      print "[re]starting.."
 
       tag = SensorTag(bluetooth_adr)
       cbs = SensorCallbacks(bluetooth_adr)
@@ -202,8 +219,6 @@ def main():
       tag.char_write_cmd(0x4c,0x0100)
 
       tag.notification_loop()
-     except:
-      pass
 
 if __name__ == "__main__":
     main()
