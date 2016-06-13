@@ -6,23 +6,23 @@
 // The logfile has new lines written to it, each should be a JSON string.
 
 
-var app = require('express')()
-, server = require('http').createServer(app)
-, io = require('socket.io').listen(server);
+var app = require('express')();
+var server = require('http').createServer(app);
+var io = require('socket.io').listen(server);
 
 
 var cp = require('child_process');
-var sensorlog = '../../sensortag.log';
+var sensorlog = 'sensortag.log';
 
 server.listen(3000);
 
 app.get('/', function (req, res) {
-    res.sendfile(__dirname + '/index.html');
+    res.sendFile(__dirname + '/index.html');
 });
 
 
 io.sockets.on('connection', function (socket) {
-
+    console.log('a user connected');
     var child = cp.spawn('tail', ['-f', sensorlog]);
     child.stdout.on('data', function(data){
 	data = data.toString();

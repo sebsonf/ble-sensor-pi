@@ -31,7 +31,15 @@ To enable the bluetooth adaptor and find your SensorTag device address do the fo
 
 Press the side button and you should get a couple of lines showing the device is working. Hit Ctrl-C to exit.  Now you're ready to go -
 
-    python sensortag.py [ADDRESS]
+    python sensortag.py [ADDRESS] [LOGFILE]
+
+In order to use the Node.js socket.io application, node.js, express webframework and socket.io need to be installed (compare example on http://socket.io/get-started/chat/):
+    sudo apt-get install nodejs
+    sudo apt-get install npm
+    cd node_socketio_demo
+    npm install --save express
+    npm install --save socket.io
+    node app.js    
 
 
 I've put this code under the Apache 2.0 licence, if folks want to use it and that 
