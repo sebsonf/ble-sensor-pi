@@ -41,9 +41,9 @@ class SensorTag:
         print "Preparing to connect. You might need to press the side button..."
         self.con.sendline('connect')
         # test for success of connect
-	self.con.expect('Connection successful.*\[LE\]>')
+	# self.con.expect('Connection successful.*\[LE\]>')
         # Earlier versions of gatttool returned a different message.  Use this pattern -
-        #self.con.expect('\[CON\].*>')
+        self.con.expect('\[CON\].*>')
         self.cb = {}
         return
 
@@ -161,7 +161,7 @@ def main():
         datalog = open(sys.argv[2], 'w+')
 
     while True:
-     try:   
+     try:
       print "[re]starting.."
 
       tag = SensorTag(bluetooth_adr)
@@ -207,4 +207,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

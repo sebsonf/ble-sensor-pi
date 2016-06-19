@@ -6,15 +6,101 @@
 <h1>SensorTag live data</h1>
 
 <p><span id="output"></span></p>
+<div id="chart"></div>
+<div id="temperature-gauge"></div>
+
+<!-- Load c3.css -->
+<link href="/c3/c3.css" rel="stylesheet" type="text/css">
+<script src="https://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+
+<script src="/c3/c3.min.js"></script>
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
   var socket = io.connect();
   socket.on('news', function (data) {
     //console.log(data);
-    $("#output").html("temp " + data.t006 + " x,y,z " + data.accl );
+
+    var chart = c3.generate({
+        bindto: '#temperature-gauge',
+        data: {
+            columns: [
+                ['data', data.t006]
+            ],
+            type: 'gauge',
+            onclick: function (d, i) { console.log("onclick", d, i); },
+            onmouseover: function (d, i) { console.log("onmouseover", d, i); },
+            onmouseout: function (d, i) { console.log("onmouseout", d, i); }
+        },
+        gauge: {
+    //        label: {
+    //            format: function(value, ratio) {
+    //                return value;
+    //            },
+    //            show: false // to turn off the min/max labels.
+    //        },
+    //    min: 0, // 0 is default, //can handle negative min e.g. vacuum / voltage / current flow / rate of change
+    //    max: 100, // 100 is default
+        units: ' °C',
+    //    width: 39 // for adjusting arc thickness
+        },
+        color: {
+            pattern: ['#FF0000', '#F97600', '#F6C600', '#60B044'], // the three color levels for the percentage values.
+            threshold: {
+    //            unit: 'value', // percentage is default
+    //            max: 200, // 100 is default
+                values: [30, 60, 90, 100]
+            }
+        },
+        size: {
+            height: 180
+        }
+    });
+
+    $("#output").html("adresse: " + data.addr + " temp " + data.t006 + " x,y,z " + data.accl[0] );
     socket.emit('my other event', { my: 'data' });
   });
+
+  socket.on('history', function (data) {
+
+    var data_timestamp = [];
+    data_timestamp[0] = 't';
+    for (var i = 0; i < data.length; i++){
+      data_timestamp[i+1] = data[i].timestamp;
+    }
+
+    var data_t006 = [];
+    data_t006[0] = 'temperature';
+    for (var i = 0; i < data.length; i++){
+      data_t006[i+1] = data[i].t006;
+    }
+
+    var chart = c3.generate({
+      bindto: '#chart',
+      data: {
+        x: 't',
+        xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
+        columns: [
+          data_timestamp,
+          data_t006
+        ],
+      },
+      axis: {
+        x: {
+          type: 'timeseries',
+          tick: {
+            format: '%H:%M:%S'
+          }
+        },
+        y: {
+          max: 40,
+          min: 0,
+        }
+      }
+    });
+  });
+
+
 </script>
 </body>
 </html>
