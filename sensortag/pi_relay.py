@@ -9,12 +9,13 @@ class pi_relay:
 
         GPIO.setmode(GPIO.BCM)
         GPIO.setup(self.pin, GPIO.OUT)
+	self.off()
 
     def __del__(self):
         GPIO.cleanup()
 
     def on(self):
-        GPIO.output(self.pin, 1)
+        GPIO.output(self.pin, 0)
 
     def off(self):
-        GPIO.output(self.pin, 0)
+        GPIO.output(self.pin, 1)

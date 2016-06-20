@@ -22,11 +22,12 @@
 import pexpect
 import sys
 import time
+import os
 from sensor_calcs import *
 import json
 import select
 from rethinkdb_interface import *
-#from climate_controller import *
+from climate_controller import *
 
 def floatfromhex(h):
     t = float.fromhex(h)
@@ -43,9 +44,9 @@ class SensorTag:
         print "Preparing to connect. You might need to press the side button..."
         self.con.sendline('connect')
         # test for success of connect
-	# self.con.expect('Connection successful.*\[LE\]>')
+	self.con.expect('Connection successful.*\[LE\]>')
         # Earlier versions of gatttool returned a different message.  Use this pattern -
-        self.con.expect('\[CON\].*>')
+        # self.con.expect('\[CON\].*>')
         self.cb = {}
         return
 
@@ -125,7 +126,9 @@ class SensorCallbacks:
         (t, rh) = calcHum(rawT, rawH)
         self.data['humd'] = [t, rh]
         print "HUMD", t, " %.1f" % rh
-        #controller.check(t,rh)
+        controller.check(t,rh)
+	if int(time.time()) % 10 == 0:
+            db.insert(self.data)
 
     def baro(self,v):
         global barometer
@@ -137,8 +140,8 @@ class SensorCallbacks:
         self.data['time'] = long(time.time() * 1000);
         # The socket or output file might not be writeable
         # check with select so we don't block.
-        if int(time.time()) % 10 == 0:
-            db.insert(self.data)
+        #if int(time.time()) % 10 == 0:
+        #    db.insert(self.data)
 
         #(re,wr,ex) = select.select([],[datalog],[],0)
         #if len(wr) > 0:
@@ -161,13 +164,14 @@ def main():
     global datalog
     global barometer
     global db
-    #global controller
+    global controller
 
-    db = rethinkdb_interface("localhost", 28015, 'anbau', 'plant_stats')
-    #db = rethinkdb_interface("192.168.0.2", 28015, 'anbau', 'plant_stats')
-    #controller = climate_controller(pin=17, minHum=0.35, maxHum=0.65, minTemp=21, maxTemp=24)
+    #db = rethinkdb_interface("localhost", 28015, 'anbau', 'plant_stats')
+    db = rethinkdb_interface("jferch.no-ip.org", 28015, 'anbau', 'plant_stats')
+    controller = climate_controller(pin=17, minHum=35, maxHum=65, minTemp=21, maxTemp=24)
 
-    bluetooth_adr = sys.argv[1]
+    #bluetooth_adr = sys.argv[1]
+    bluetooth_adr = os.getenv('SENSORTAG_ADDRESS')
     #data['addr'] = bluetooth_adr
     if len(sys.argv) > 2:
         datalog = open(sys.argv[2], 'w+')
@@ -180,14 +184,14 @@ def main():
       cbs = SensorCallbacks(bluetooth_adr)
 
       # enable TMP006 sensor
-      tag.register_cb(0x25,cbs.tmp006)
-      tag.char_write_cmd(0x29,0x01)
-      tag.char_write_cmd(0x26,0x0100)
+      #tag.register_cb(0x25,cbs.tmp006)
+      #tag.char_write_cmd(0x29,0x01)
+      #tag.char_write_cmd(0x26,0x0100)
 
       # enable accelerometer
-      tag.register_cb(0x2d,cbs.accel)
-      tag.char_write_cmd(0x31,0x01)
-      tag.char_write_cmd(0x2e,0x0100)
+      #tag.register_cb(0x2d,cbs.accel)
+      #tag.char_write_cmd(0x31,0x01)
+      #tag.char_write_cmd(0x2e,0x0100)
 
       # enable humidity
       tag.register_cb(0x38, cbs.humidity)
@@ -195,23 +199,23 @@ def main():
       tag.char_write_cmd(0x39,0x0100)
 
       # enable magnetometer
-      tag.register_cb(0x40,cbs.magnet)
-      tag.char_write_cmd(0x44,0x01)
-      tag.char_write_cmd(0x41,0x0100)
+      #tag.register_cb(0x40,cbs.magnet)
+      #tag.char_write_cmd(0x44,0x01)
+      #tag.char_write_cmd(0x41,0x0100)
 
       # enable gyroscope
-      tag.register_cb(0x57,cbs.gyro)
-      tag.char_write_cmd(0x5b,0x07)
-      tag.char_write_cmd(0x58,0x0100)
+      #tag.register_cb(0x57,cbs.gyro)
+      #tag.char_write_cmd(0x5b,0x07)
+      #tag.char_write_cmd(0x58,0x0100)
 
       # fetch barometer calibration
-      tag.char_write_cmd(0x4f,0x02)
-      rawcal = tag.char_read_hnd(0x52)
-      barometer = Barometer( rawcal )
+      #tag.char_write_cmd(0x4f,0x02)
+      #rawcal = tag.char_read_hnd(0x52)
+      #barometer = Barometer( rawcal )
       # enable barometer
-      tag.register_cb(0x4b,cbs.baro)
-      tag.char_write_cmd(0x4f,0x01)
-      tag.char_write_cmd(0x4c,0x0100)
+      #tag.register_cb(0x4b,cbs.baro)
+      #tag.char_write_cmd(0x4f,0x01)
+      #tag.char_write_cmd(0x4c,0x0100)
 
       tag.notification_loop()
      except:
