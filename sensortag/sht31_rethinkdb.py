@@ -20,7 +20,6 @@ def main():
                 sht31.turn_heater_off()
                 #print sht31.check_heater_status()
                 temperature, humidity = sht31.get_temp_and_humidity()
-		data['time'] = long(time.time() * 1000)
 		data['temperature'] = temperature
 		data['humidity'] = humidity
                 print "Temperature: %s" % temperature
