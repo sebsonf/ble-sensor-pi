@@ -1,6 +1,6 @@
 import time
 import smbus
-from rethinkdb_interface import *
+from mongodb_interface import *
 from climate_controller import *
 from sht31 import *
 
@@ -8,7 +8,7 @@ from sht31 import *
 def main():
     
     data = {}
-    db = rethinkdb_interface("192.168.0.3", 28015, 'anbau', 'plant_stats')
+    db = mongodb_interface("82.165.163.195", 27017, 'anbau', 'plant_stats')
     controller = climate_controller(pin=17, minHum=35, maxHum=65, minTemp=21, maxTemp=24)
 
     while True:
