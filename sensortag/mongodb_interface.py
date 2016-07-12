@@ -2,6 +2,7 @@
 
 from pymongo import MongoClient
 from datetime import datetime
+import pytz
 from bson.objectid import ObjectId 
 
 class mongodb_interface:
@@ -11,12 +12,14 @@ class mongodb_interface:
         self.port = port
         self.database = database
         self.collection = collection
-        
+       
         self.client = MongoClient(self.server, self.port)
 
 	self.db = self.client[self.database]
 	self.coll = self.db[self.collection] 
-
+	
+	self.tz = pytz.timezone('Europe/Berlin')
+	
         #if self.database in r.db_list().run(self.conn):
         #    print('Database ' + self.database + ' exists! Using it.')
         #else:
@@ -44,5 +47,6 @@ class mongodb_interface:
     def insert(self, temp_data):
         data = temp_data
 	data['_id'] = ObjectId()
-        data['time'] = datetime.now()
+	
+        data['time'] = datetime.now(self.tz)
         self.coll.insert_one(data)
