@@ -8,6 +8,7 @@
 <p><span id="output"></span></p>
 <div id="chart"></div>
 <div id="temperature-gauge"></div>
+<div id="humidity-gauge"></div>
 
 <!-- Load c3.css -->
 <link href="/c3/c3.css" rel="stylesheet" type="text/css">
@@ -25,7 +26,7 @@
         bindto: '#temperature-gauge',
         data: {
             columns: [
-                ['data', data.t006]
+                ['data', data.temperature]
             ],
             type: 'gauge',
             onclick: function (d, i) { console.log("onclick", d, i); },
@@ -33,15 +34,53 @@
             onmouseout: function (d, i) { console.log("onmouseout", d, i); }
         },
         gauge: {
-    //        label: {
-    //            format: function(value, ratio) {
-    //                return value;
+            label: {
+                format: function(value, ratio) {
+                    return value.toFixed(2);
+                }
     //            },
     //            show: false // to turn off the min/max labels.
-    //        },
+            },
     //    min: 0, // 0 is default, //can handle negative min e.g. vacuum / voltage / current flow / rate of change
     //    max: 100, // 100 is default
-        units: ' °C',
+        units: '°C',
+    //    width: 39 // for adjusting arc thickness
+        },
+        color: {
+            pattern: ['#FF0000', '#F97600', '#F6C600', '#60B044'], // the three color levels for the percentage values.
+            threshold: {
+    //            unit: 'value', // percentage is default
+    //            max: 200, // 100 is default
+                values: [30, 60, 90, 100]
+            }
+        },
+        size: {
+            height: 180
+        }
+    });
+
+    var chart = c3.generate({
+        bindto: '#humidity-gauge',
+        data: {
+            columns: [
+                ['data', data.humidity]
+            ],
+            type: 'gauge',
+            onclick: function (d, i) { console.log("onclick", d, i); },
+            onmouseover: function (d, i) { console.log("onmouseover", d, i); },
+            onmouseout: function (d, i) { console.log("onmouseout", d, i); }
+        },
+        gauge: {
+            label: {
+                format: function(value, ratio) {
+                    return value.toFixed(2);
+                }
+    //            },
+    //            show: false // to turn off the min/max labels.
+            },
+        min: 0, // 0 is default, //can handle negative min e.g. vacuum / voltage / current flow / rate of change
+        max: 100, // 100 is default
+        units: 'rH',
     //    width: 39 // for adjusting arc thickness
         },
         color: {
@@ -66,13 +105,13 @@
     var data_timestamp = [];
     data_timestamp[0] = 't';
     for (var i = 0; i < data.length; i++){
-      data_timestamp[i+1] = data[i].timestamp;
+      data_timestamp[i+1] = data[i].time;
     }
 
-    var data_t006 = [];
-    data_t006[0] = 'temperature';
+    var data_temp = [];
+    data_temp[0] = 'temperature';
     for (var i = 0; i < data.length; i++){
-      data_t006[i+1] = data[i].t006;
+      data_temp[i+1] = data[i].temperature;
     }
 
     var chart = c3.generate({
@@ -82,12 +121,13 @@
         xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
         columns: [
           data_timestamp,
-          data_t006
+          data_temp
         ],
       },
       axis: {
         x: {
           type: 'timeseries',
+          localtime: false,
           tick: {
             format: '%H:%M:%S'
           }

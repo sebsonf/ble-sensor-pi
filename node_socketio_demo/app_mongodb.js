@@ -11,7 +11,7 @@ var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 
 var mongoose = require('mongoose');
-mongoose.connect('mongodb://localhost/plant_stats');
+mongoose.connect('mongodb://82.165.163.195/anbau');
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
@@ -20,36 +20,16 @@ db.once('open', function() {
     console.log('connected to database!');
 });
 
-// mongoose schema representing sensortag data
-var sensortagSchema = mongoose.Schema({
-  timestamp: Date,
-  bluetoothAddress: String,
-  t006: Number,
-  acceleration: {
-    x: Number,
-    y: Number,
-    z: Number
-  },
-  barometer: {
-    temperature: Number,
-    pressure: Number
-  },
-  humiditySensor: {
-    temperature: Number,
-    humidity: Number
-  },
-  magnetometer: {
-    x: Number,
-    y: Number,
-    z: Number
-  }
+// mongoose schema representing sensor data
+var sensorSchema = mongoose.Schema({
+  time: Date,
+  temperature: Number,
+  humidity: Number,
+  climateState: Boolean
 });
 
-// create model
-var Stats = mongoose.model('Stats', sensortagSchema);
-
-var cp = require('child_process');
-var sensorlog = 'sensortag.log';
+// create mongoose model
+var PlantStats = mongoose.model('plant_stats', sensorSchema);
 
 server.listen(3000);
 
@@ -60,50 +40,48 @@ app.get('/', function (req, res) {
 app.use(express.static('ressources'));
 
 
-io.sockets.on('connection', function (socket) {
-  console.log('a user connected');
-  var child = cp.spawn('tail', ['-f', sensorlog]);
-  child.stdout.on('data', function(data){
-  	data = data.toString();
-  	// console.log(data);
-  	data = data.split('\n');
-  	data = JSON.parse(data[0]);
+// var stream = PlantStats.find().stream({ transform: JSON.stringify });
+//
+// stream.on('data', function(doc){
+//     console.log('New item!');
+//     console.log(doc);
+// }).on('error', function (error){
+//     console.log(error);
+// }).on('close', function () {
+//     console.log('closed');
+// });
 
-    var dataSet = new Stats({
-      timestamp: data.time,
-      bluetoothAddress: data.addr,
-      t006: data.t006,
-      acceleration: {
-        x: data.accl[0],
-        y: data.accl[1],
-        z: data.accl[2]
-      },
-      barometer: {
-        temperature: data.baro[0],
-        pressure: data.baro[1]
-      },
-      humiditySensor: {
-        temperature: data.humd[0],
-        humidity: data.humd[1]
-      },
-      magnetometer: {
-        x: data.magn[0],
-        y: data.magn[1],
-        z: data.magn[2]
-      }
-    });
 
-    dataSet.save();
 
-    var historyQuery = Stats.find().sort({timestamp:-1}).limit(1000);
-    historyQuery.select('timestamp t006');
+io.sockets.on('connection', function ( socket) {
 
-    historyQuery.exec(function (err, data) {
-      if (err) return handleError(err);
-      socket.emit('history', data);
-    })
+    console.log('a user connected');
 
-  	socket.emit('news', data);
-  });
 
+
+    // var historyQuery = Stats.find().sort({timestamp:-1}).limit(1000);
+    // historyQuery.select('timestamp t006');
+    //
+    // historyQuery.exec(function (err, data) {
+    //   if (err) return handleError(err);
+    //   socket.emit('history', data);
+    // })
+    //
+  	// socket.emit('news', data);
 });
+
+var lastDate;
+
+// poll for new database entries
+setInterval(function(){
+
+    // get last entry
+    var queryResult = PlantStats.findOne().sort({time:-1});
+    queryResult.select('time temperature humidity');
+
+    queryResult.exec(function( err, data ) {
+      if (err) return handleError(err);
+      console.log(data['time'], data['temperature'], data['humidity']);
+      io.sockets.emit('news', data);
+    });
+}, 10000);
