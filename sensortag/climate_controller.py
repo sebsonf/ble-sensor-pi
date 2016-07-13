@@ -13,7 +13,7 @@ class climate_controller:
         self.pi_relay = pi_relay(pin)
         self.pi_relay.off()
         self.state = False
-	    print "Climate controller initialized!"
+        print "Climate controller initialized!"
 
     def calcStateFromHumid(self, humid):
         if ( humid > self.maxHum ) and ( self.state == False ):
@@ -32,7 +32,7 @@ class climate_controller:
             return self.state
 
     def updateState(self, temp, humid):
-        if ( ( calcStateFromTemp(temp) or calcStateFromHumid(humid) ) == True ):
+        if ( ( self.calcStateFromTemp(temp) or self.calcStateFromHumid(humid) ) == True ):
 	    #print "relay on"
             self.pi_relay.on()
             self.state = True

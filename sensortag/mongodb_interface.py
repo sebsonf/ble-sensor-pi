@@ -46,7 +46,7 @@ class mongodb_interface:
 
     def insert(self, temp_data):
         data = temp_data
-	    data['_id'] = ObjectId()
+        data['_id'] = ObjectId()
 
         data['time'] = datetime.now(self.tz)
         self.coll.insert_one(data)

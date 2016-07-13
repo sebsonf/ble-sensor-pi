@@ -27,17 +27,17 @@ def main():
 
                 controller.updateState(temperature, humidity)
                 data['climateState'] = controller.getState()
-                print "State: %d" % controller.getState()
+                print "ClimateState: %d" % controller.getState()
 
                 # insert data into database every 10 seconds
-        		if int(time.time()) % 10 == 0:
-        	        db.insert(data)
+       		if int(time.time()) % 10 == 0:
+	       	    db.insert(data)
 
                 time.sleep(1)
         except IOError, e:
         #print e
         #print "Error creating connection to i2c.  This must be run as root"
-        pass
+            pass
 
 if __name__ == "__main__":
     main()
