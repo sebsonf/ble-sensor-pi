@@ -3,7 +3,7 @@
 from pi_relay import *
 
 # implements hysteresis controller
-class climate_controller:
+class fan_controller:
 
     def __init__(self, pin, minHum, maxHum, minTemp, maxTemp):
         self.minHum = minHum
@@ -13,7 +13,7 @@ class climate_controller:
         self.pi_relay = pi_relay(pin)
         self.pi_relay.off()
         self.state = False
-        print "Climate controller initialized!"
+        print "Fan controller initialized!"
 
     def calcStateFromHumid(self, humid):
         if ( humid > self.maxHum ) and ( self.state == False ):
