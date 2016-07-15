@@ -33,7 +33,7 @@ def main():
                 # insert data into database every 10 seconds
                 if int(time.time()) % 10 == 0:
                     if inserted == 0:
-	       	            db.insert(data)
+	       	        db.insert(data)
                         inserted = 1
                 else:
                     inserted = 0
