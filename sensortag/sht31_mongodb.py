@@ -10,6 +10,7 @@ def main():
     data = {}
     db = mongodb_interface("82.165.163.195", 27017, 'anbau', 'plant_stats')
     controller = fan_controller(pin=17, minHum=45, maxHum=65, minTemp=23, maxTemp=24)
+    inserted = 0
 
     while True:
         try:
@@ -30,10 +31,14 @@ def main():
                 print "Fan state: %d" % controller.getState()
 
                 # insert data into database every 10 seconds
-       		if int(time.time()) % 10 == 0:
-	       	    db.insert(data)
+                if int(time.time()) % 10 == 0:
+                    if inserted == 0:
+	       	            db.insert(data)
+                        inserted = 1
+                else:
+                    inserted = 0
 
-                time.sleep(1)
+                time.sleep(0.8)
         except IOError, e:
         #print e
         #print "Error creating connection to i2c.  This must be run as root"

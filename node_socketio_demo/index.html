@@ -60,6 +60,12 @@
       data_humid[i+1] = data[i].humidity;
     }
 
+    var data_fan_state = [];
+    data_fan_state[0] = 'Lüfterstatus';
+    for (var i = 0; i < data.length; i++){
+      data_fan_state[i+1] = data[i].fanState;
+    }
+
     var chart = c3.generate({
       bindto: '#last-hour-chart',
       data: {
@@ -71,7 +77,7 @@
           data_humid
         ],
         axes: {
-          Temperature: 'y',
+          Temperatur: 'y',
           Luftfeuchtigkeit: 'y2'
         }
       },
@@ -100,6 +106,45 @@
           show: true,
           label: {
             text: 'Luftfeuchtigkeit',
+            position: 'outer-middle'
+          }
+        }
+      }
+    });
+
+
+    var chart = c3.generate({
+      bindto: '#last-hour-fan-chart',
+      data: {
+        x: 'Zeit',
+        xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
+        columns: [
+          data_timestamp,
+          data_fan_state
+        ],
+        types: {
+          Lüfterstatus: 'area'
+        },
+        axes: {
+          fanState: 'y'
+        }
+      },
+      zoom: {
+        enabled: true
+      },
+      axis: {
+        x: {
+          type: 'timeseries',
+          localtime: true,
+          tick: {
+            format: '%H:%M:%S'
+          }
+        },
+        y: {
+          max: 1,
+          min: 0,
+          label: {
+            text: 'Lüfterzustand',
             position: 'outer-middle'
           }
         }

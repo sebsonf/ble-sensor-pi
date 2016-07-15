@@ -123,7 +123,7 @@ function calculateStatsFromTimeSelection( err, data, params ){
 }
 
 function emitMostRecentDatapoint(){
-  PlantStats.findOne().sort({time:-1}).select({ time: 1, temperature: 1, humidity: 1, climateState: 1}).exec(function( err, data ) {
+  PlantStats.findOne().sort({time:-1}).exec(function( err, data ) {
     if (err) return handleError(err);
     console.log(data['time'], data['temperature'], data['humidity'], data['fanState']);
     io.sockets.emit('most-recent-datapoint', data);
