@@ -3,11 +3,20 @@
    <script type="text/javascript" src="https://ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
 </head>
 <body>
-<h1>SensorTag live data</h1>
+<h1>PlantStats</h1>
 
 <p><span id="output"></span></p>
-<div id="chart"></div>
+
+<p><span id="last-hour"></span></p>
+
+<h2>Daten der letzten Stunde</h2>
+<div id="last-hour-chart"></div>
+<div id="stats-current-hour-temperature-chart"></div>
+<div id="stats-current-hour-humidity-chart"></div>
+<h2>Temperatur</h2>
 <div id="temperature-gauge"></div>
+
+<h2>Luftfeuchtigkeit</h2>
 <div id="humidity-gauge"></div>
 
 <!-- Load c3.css -->
@@ -18,15 +27,159 @@
 
 <script src="/socket.io/socket.io.js"></script>
 <script>
+  // mongoDB date is stored as UTC time
+  // convert to local time
+  function toLocalTime(utcString){
+      var d = new Date();
+      d.setTime(Date.parse(utcString));
+      d.setHours(d.getHours() - d.getTimezoneOffset()/60);
+      return d.toISOString();
+  }
+
   var socket = io.connect();
-  socket.on('news', function (data) {
+
+  // generate timeseries chart from previous data
+  socket.on('last-hour-history', function (data) {
+
+    var data_timestamp = [];
+    data_timestamp[0] = 'Zeit';
+    for (var i = 0; i < data.length; i++){
+      data_timestamp[i+1] = toLocalTime(data[i].time);
+    }
+
+    var data_temp = [];
+    data_temp[0] = 'Temperatur';
+    for (var i = 0; i < data.length; i++){
+      data_temp[i+1] = data[i].temperature;
+    }
+
+    var data_humid = [];
+    data_humid[0] = 'Luftfeuchtigkeit';
+    for (var i = 0; i < data.length; i++){
+      data_humid[i+1] = data[i].humidity;
+    }
+
+    var chart = c3.generate({
+      bindto: '#last-hour-chart',
+      data: {
+        x: 'Zeit',
+        xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
+        columns: [
+          data_timestamp,
+          data_temp,
+          data_humid
+        ],
+        axes: {
+          Temperature: 'y',
+          Luftfeuchtigkeit: 'y2'
+        }
+      },
+      zoom: {
+        enabled: true
+      },
+      axis: {
+        x: {
+          type: 'timeseries',
+          localtime: true,
+          tick: {
+            format: '%H:%M:%S'
+          }
+        },
+        y: {
+          max: 40,
+          min: 0,
+          label: {
+            text: 'Temperatur',
+            position: 'outer-middle'
+          }
+        },
+        y2: {
+          max: 100,
+          min: 0,
+          show: true,
+          label: {
+            text: 'Luftfeuchtigkeit',
+            position: 'outer-middle'
+          }
+        }
+      }
+    });
+  });
+
+  socket.on('stats-current-hour', function(data) {
+
+    console.log(data.t);
+
+    var chart = c3.generate({
+        bindto: '#stats-current-hour-temperature-chart',
+        data: {
+            x: 't',
+            xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
+            columns: [
+                ['t', data.t],
+                ['Maximaltemperatur', data.maxTemp],
+                ['Mittlere Temperatur', data.meanTemp],
+                ['Minimaltemperatur', data.minTemp]
+            ],
+            type: 'bar'
+        },
+        axis: {
+          x: {
+            type: 'timeseries',
+            localtime: true,
+            tick: {
+              format: '%H:%M:%S'
+            }
+          }
+        },
+        bar: {
+            width: {
+                ratio: 0.5 // this makes bar width 50% of length between ticks
+            }
+            // or
+            //width: 100 // this makes bar width 100px
+        }
+    });
+
+    // var chart = c3.generate({
+    //     bindto: '#stats-current-hour-humidity-chart',
+    //     data: {
+    //         x: 't',
+    //         columns: [
+    //             ['t', data.t],
+    //             ['Maximale Luftfeuchtigkeit', data.maxHumid],
+    //             ['Mittlere Luftfeuchtigkeit', data.meanHumid],
+    //             ['Minimale Luftfeuchtigkeit', data.minHumid]
+    //         ],
+    //         type: 'bar'
+    //     },
+    //     axis: {
+    //       x: {
+    //         type: 'category',
+    //         categories: data.t
+    //       }
+    //     },
+    //     bar: {
+    //         width: {
+    //             ratio: 0.5 // this makes bar width 50% of length between ticks
+    //         }
+    //         // or
+    //         //width: 100 // this makes bar width 100px
+    //     }
+    // });
+
+
+    $("#last-hour").html("meanTemp: " + data.meanTemp + " meanHumid " + data.meanHumid + " maxTemp " + data.maxTemp );
+  });
+
+  socket.on('most-recent-datapoint', function (data) {
     //console.log(data);
 
     var chart = c3.generate({
         bindto: '#temperature-gauge',
         data: {
             columns: [
-                ['data', data.temperature]
+                ['Temperatur', data.temperature]
             ],
             type: 'gauge',
             onclick: function (d, i) { console.log("onclick", d, i); },
@@ -63,7 +216,7 @@
         bindto: '#humidity-gauge',
         data: {
             columns: [
-                ['data', data.humidity]
+                ['Luftfeuchtigkeit', data.humidity]
             ],
             type: 'gauge',
             onclick: function (d, i) { console.log("onclick", d, i); },
@@ -96,49 +249,12 @@
         }
     });
 
-    $("#output").html("adresse: " + data.addr + " temp " + data.t006 + " x,y,z " + data.accl[0] );
-    socket.emit('my other event', { my: 'data' });
+    $("#output").html("Zeit: " + data.time + " temp " + data.temperature + " humid " + data.humidity + " climateState " + data.climateState );
+
+
   });
 
-  socket.on('history', function (data) {
 
-    var data_timestamp = [];
-    data_timestamp[0] = 't';
-    for (var i = 0; i < data.length; i++){
-      data_timestamp[i+1] = data[i].time;
-    }
-
-    var data_temp = [];
-    data_temp[0] = 'temperature';
-    for (var i = 0; i < data.length; i++){
-      data_temp[i+1] = data[i].temperature;
-    }
-
-    var chart = c3.generate({
-      bindto: '#chart',
-      data: {
-        x: 't',
-        xFormat: '%Y-%m-%dT%H:%M:%S.%LZ',
-        columns: [
-          data_timestamp,
-          data_temp
-        ],
-      },
-      axis: {
-        x: {
-          type: 'timeseries',
-          localtime: false,
-          tick: {
-            format: '%H:%M:%S'
-          }
-        },
-        y: {
-          max: 40,
-          min: 0,
-        }
-      }
-    });
-  });
 
 
 </script>

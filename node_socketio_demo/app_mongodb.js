@@ -1,15 +1,22 @@
-// More sensortag demo stuff by Michael Saunby. April 2013
-//
-// This nodejs server script requires the following to be in place -
-// A suitable index.html in the same directory as this script.
-// A logfile - see 'var sensortag' below.
-// The logfile has new lines written to it, each should be a JSON string.
-
 var express = require('express');
 var app = express();
 var server = require('http').createServer(app);
 var io = require('socket.io').listen(server);
 
+// ###########################################################
+// EXPRESS WEBSERVER CONFIGURATION
+// ###########################################################
+server.listen(3000);
+
+app.get('/', function (req, res) {
+    res.sendFile(__dirname + '/index.html');
+});
+
+app.use(express.static('ressources'));
+
+// ###########################################################
+// MONGOOSE MONGODB DATABASE CONFIGURATION
+// ###########################################################
 var mongoose = require('mongoose');
 mongoose.connect('mongodb://82.165.163.195/anbau');
 
@@ -31,57 +38,129 @@ var sensorSchema = mongoose.Schema({
 // create mongoose model
 var PlantStats = mongoose.model('plant_stats', sensorSchema);
 
-server.listen(3000);
-
-app.get('/', function (req, res) {
-    res.sendFile(__dirname + '/index.html');
-});
-
-app.use(express.static('ressources'));
-
-
-// var stream = PlantStats.find().stream({ transform: JSON.stringify });
-//
-// stream.on('data', function(doc){
-//     console.log('New item!');
-//     console.log(doc);
-// }).on('error', function (error){
-//     console.log(error);
-// }).on('close', function () {
-//     console.log('closed');
-// });
-
-
-
+// ###########################################################
+// ON USER CONNECTION
+// ###########################################################
 io.sockets.on('connection', function ( socket) {
 
     console.log('a user connected');
 
+    // get data from last hour
+    updateLastHourHistory();
 
+    // get most recent datapoint
+    emitMostRecentDatapoint();
 
-    // var historyQuery = Stats.find().sort({timestamp:-1}).limit(1000);
-    // historyQuery.select('timestamp t006');
-    //
-    // historyQuery.exec(function (err, data) {
-    //   if (err) return handleError(err);
-    //   socket.emit('history', data);
-    // })
-    //
-  	// socket.emit('news', data);
+    // calculate mean, max and min for temperature and humidity from current hour
+    calculateStatsFromCurrentHour();
 });
 
-var lastDate;
 
-// poll for new database entries
+function queryFromTimeSelection( startTime, stopTime, callback, params ){
+  PlantStats.find({time: { $gte: startTime, $lt: stopTime}}).exec(function( err, data ) {
+    callback( err, data, params);
+  });
+}
+
+
+
+function calculateStatsFromCurrentHour(){
+  // calculate mean from current hour
+  var startTime = new Date();
+  var stopTime = new Date();
+  startTime.setMinutes(0);
+  startTime.setSeconds(0);
+
+  var timespan = startTime.getHours().toString() + ':' + startTime.getMinutes().toString() + ' - ' + stopTime.getHours().toString() + ':' + stopTime.getMinutes().toString();
+  console.log(timespan);
+
+  var params = {
+    channel: 'stats-current-hour',
+    startTime: startTime,
+    timespan: timespan
+  }
+
+  queryFromTimeSelection( startTime, stopTime, calculateStatsFromTimeSelection, params);
+
+}
+
+// calculates the mean from time selection of query data and emits data on channel
+function calculateStatsFromTimeSelection( err, data, params ){
+  if (err){
+    console.log(err);
+  } else {
+    var meanTemp = 0;
+    var maxTemp = 0;
+    var minTemp = 100;
+    var meanHumid = 0;
+    var maxHumid = 0;
+    var minHumid = 100;
+
+    for (var i = 0; i < data.length; i++){
+      meanTemp += data[i].temperature;
+      maxTemp = Math.max(maxTemp, data[i].temperature);
+      minTemp = Math.min(minTemp, data[i].temperature);
+      meanHumid += data[i].humidity;
+      maxHumid = Math.max(maxHumid, data[i].humidity);
+      minHumid = Math.min(minHumid, data[i].humidity);
+    }
+    meanTemp /= data.length;
+    meanHumid /= data.length;
+
+    var stats = {
+      't': params.startTime,
+      'timespan': params.timespan,
+      'meanTemp': meanTemp,
+      'maxTemp': maxTemp,
+      'minTemp': minTemp,
+      'meanHumid': meanHumid,
+      'maxHumid': maxHumid,
+      'minHumid': minHumid
+    };
+    console.log('vor emit: ', params.channel, params.timespan);
+    io.sockets.emit( params.channel, stats );
+  }
+}
+
+function emitMostRecentDatapoint(){
+  PlantStats.findOne().sort({time:-1}).select({ time: 1, temperature: 1, humidity: 1, climateState: 1}).exec(function( err, data ) {
+    if (err) return handleError(err);
+    console.log(data['time'], data['temperature'], data['humidity'], data['climateState']);
+    io.sockets.emit('most-recent-datapoint', data);
+  });
+}
+
+
+
+function updateLastHourHistory(){
+  // get current open hour
+  var startTime = new Date();
+  var stopTime = new Date();
+  startTime.setHours( startTime.getHours() - 1);
+
+  var params = {
+    channel: 'last-hour-history'
+  };
+
+  queryFromTimeSelection( startTime, stopTime, emitLastHourHistory, params);
+}
+
+function emitLastHourHistory(err, data, params){
+  if (err){
+    console.log(err);
+  }
+  io.sockets.emit(params.channel, data);
+}
+
+// ###########################################################
+// poll for new database entries every 10 seconds
+// ###########################################################
 setInterval(function(){
-
     // get last entry
-    var queryResult = PlantStats.findOne().sort({time:-1});
-    queryResult.select('time temperature humidity');
+    emitMostRecentDatapoint();
 
-    queryResult.exec(function( err, data ) {
-      if (err) return handleError(err);
-      console.log(data['time'], data['temperature'], data['humidity']);
-      io.sockets.emit('news', data);
-    });
+    updateLastHourHistory();
+
+    // calculate mean, max and min for temperature and humidity from current hour
+    calculateStatsFromCurrentHour();
 }, 10000);
